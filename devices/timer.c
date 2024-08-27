@@ -93,8 +93,10 @@ timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
 
 	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+/* 	while (timer_elapsed (start) < ticks)
+		thread_yield (); */
+	thread_sleep(start+ticks);
+	
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -126,6 +128,17 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+	/* 
+	1. 일어날 큐가 있는지 확인해야함
+	2. 있으면 tread wakeup 해서 꺠운다.
+
+	========================================
+	어떤식으로 일어날 큐가 있는지 확인 필요!
+	 */
+	int64_t next_awake_tick = get_next_awake_tick();
+	if(ticks>= next_awake_tick){
+		thread_awake(ticks);
+	} 
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

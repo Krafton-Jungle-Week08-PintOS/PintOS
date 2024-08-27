@@ -23,6 +23,13 @@
 /* Random value for basic thread
    Do not modify this value. */
 #define THREAD_BASIC 0xd42df210
+///////////////////////////////
+/* Need function to alarm-clock */
+/* block_list */
+static struct list sleep_list;
+/* next_awake tick */
+static int64_t next_awake_tick = INT64_MAX;
+///////////////////////////////
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
@@ -62,6 +69,22 @@ static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
+///////////////////////////////
+/* function to alarm-clock */
+/* thread block을 시키기 전 작업 */
+void thread_sleep(int64_t ticks);
+
+/* thread unblock을 하기 전 후 작업 */
+void thread_awake(int64_t ticks);
+
+/* next_awake_tick 변수 업데이트 */
+void update_next_awake_tick(int64_t ticks);
+
+/* get_next_awake_tick를 통해 전역변수 next_awake_tick 가지고옴 */
+int64_t get_next_awake_tick(void);
+
+/* 다음으로 실행해야할 tick을 가지고 오는 함수 */
+int64_t get_next_tick(void);
 
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
@@ -109,6 +132,8 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
+	/* init block_list */
+	list_init(&sleep_list);
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -301,10 +326,10 @@ thread_yield (void) {
 
 	ASSERT (!intr_context ());
 
-	old_level = intr_disable ();
+	old_level = intr_disable ();		//인스트럽터 비활성화
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
-	do_schedule (THREAD_READY);
+		list_push_back (&ready_list, &curr->elem);	// 리스트의 맨 마지막에 push
+	do_schedule (THREAD_READY); 
 	intr_set_level (old_level);
 }
 
@@ -587,4 +612,53 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+void thread_sleep(int64_t ticks){
+	/* 
+		현제 쓰레드의 상태를 중지시키고 쓰레드의 상태를 block한다.
+		현재 쓰레드의 인터럽트를 중지시키고 next_awake_tick 업데이트 후 
+		sleep_list에 넣고 thread_blcok을 시킨다.
+	*/
+	struct thread *curr = thread_current();
+	enum intr_level old_level = intr_disable();
+	update_next_awake_tick(ticks);
+	list_push_back(&sleep_list, &curr->elem);
+
+	curr->wakeup_tick = ticks;
+	thread_block();
+
+	intr_set_level(old_level);
+}
+
+void update_next_awake_tick(int64_t ticks){
+	next_awake_tick = (next_awake_tick > ticks) ? ticks : next_awake_tick;
+}
+
+int64_t
+get_next_awake_tick(void){
+	return next_awake_tick;
+}
+
+void thread_awake(int64_t ticks){
+	//쓰레드를 깨웠으니 다음 awake_tick을 위해 초기화
+	next_awake_tick = INT64_MAX;
+	struct thread *t;
+	struct list_elem *list_p = list_front(&sleep_list);
+	
+	// 리스트의 처음부터 마지막까지 돌려서 실행될 tick을 찾아야 한다.
+	// sleep할때 tick을 기준으로 sort한다면??? 굳이 여기서 리스트를 돌아가면서 찾을 필요가 있나?? 그냥 맨 앞의 tick을 빼면 되는거 아닌가?>
+	while(list_p!=list_tail(&sleep_list)){
+		// list_entry를 이용해서 쓰레드에 접근
+		t = list_entry(list_p, struct thread, elem);
+		if(t->wakeup_tick < ticks){
+			list_p = list_remove(&t->elem);
+			thread_unblock(t);
+		}
+		else{
+			update_next_awake_tick(t->wakeup_tick);
+			list_p = list_next(list_p);
+		}
+		
+	}
 }

@@ -94,6 +94,7 @@ struct thread {
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
+	int64_t wakeup_tick;				/* wakeup_tick */
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -142,5 +143,17 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
+
+void thread_sleep(int64_t ticks);
+
+/* thread unblock을 하기 전 후 작업 */
+void thread_awake(int64_t ticks);
+
+/* next_awake_tick 변수 업데이트 */
+void update_next_awake_tick(int64_t ticks);
+
+/* 다음으로 실행해야할 tick을 가지고 오는 함수 */
+int64_t get_next_awake_tick(void);
+
 
 #endif /* threads/thread.h */
