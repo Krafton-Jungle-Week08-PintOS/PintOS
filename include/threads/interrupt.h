@@ -4,17 +4,19 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// 인터럽트가 비활성화 되거나 활성화 됨을 나타냄.
 /* Interrupts on or off? */
 enum intr_level {
 	INTR_OFF,             /* Interrupts disabled. */
 	INTR_ON               /* Interrupts enabled. */
 };
 
-enum intr_level intr_get_level (void);
-enum intr_level intr_set_level (enum intr_level);
+enum intr_level intr_get_level (void);		// 현재 인터럽트 상태(켜져 있는지 꺼져 있는지)를 알려준다.
+enum intr_level intr_set_level (enum intr_level);	// 레벨에 따라 인터럽트를 켜거나 끈다. 여기서 시스템의 인터럽트 상태를 변경할 수 있다.
 enum intr_level intr_enable (void);
 enum intr_level intr_disable (void);
 
+// 문맥 교환이나 인터럽트 처리 중에 CPU 레지스터 상태를 저장하거나 복원하는 데 사용
 /* Interrupt stack frame. */
 struct gp_registers {
 	uint64_t r15;
@@ -32,7 +34,7 @@ struct gp_registers {
 	uint64_t rcx;
 	uint64_t rbx;
 	uint64_t rax;
-} __attribute__((packed));
+} __attribute__((packed));	// 구조체의 메모리 패딩을 없애 정확한 크기로 메모리에 저장되도록 한다.
 
 struct intr_frame {
 	/* Pushed by intr_entry in intr-stubs.S.

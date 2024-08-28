@@ -57,15 +57,15 @@ sema_init (struct semaphore *sema, unsigned value) {
    interrupts disabled, but if it sleeps then the next scheduled
    thread will probably turn interrupts back on. This is
    sema_down function. */
-void
+void		// 쓰레드를 블록(대기)상태로 만드는 함수
 sema_down (struct semaphore *sema) {
-	enum intr_level old_level;
+	enum intr_level old_level;		// 인터럽트의 상태를 저장하는데 사용
 
-	ASSERT (sema != NULL);
-	ASSERT (!intr_context ());
+	ASSERT (sema != NULL);		// 세마포어가 유효한지 검증
+	ASSERT (!intr_context ());	// 인터럽트를 처리 중인지 검증
 
 	old_level = intr_disable ();
-	while (sema->value == 0) {
+	while (sema->value == 0) {		// 0이면 현재 쓰레드는 자원을 이용할 수 없다는 뜻
 		list_push_back (&sema->waiters, &thread_current ()->elem);
 		thread_block ();
 	}

@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "gdt.h": "c",
+        "thread.h": "c",
+        "*.inc": "c",
+        "stdio.h": "c",
+        "interrupt.h": "c",
+        "process.h": "c"
+    }
+}
