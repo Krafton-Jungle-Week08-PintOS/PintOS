@@ -48,6 +48,7 @@ static long long idle_ticks;   /* # of timer ticks spent idle. */
 static long long kernel_ticks; /* # of timer ticks in kernel threads. */
 static long long user_ticks;   /* # of timer ticks in user programs. */
 
+static long long next_tick_to_awake;
 /* Scheduling. */
 #define TIME_SLICE 4		  /* # of timer ticks to give each thread. */
 static unsigned thread_ticks; /* # of timer ticks since last yield. */
@@ -75,7 +76,7 @@ static tid_t allocate_tid(void);
  * always at the beginning of a page and the stack pointer is
  * somewhere in the middle, this locates the curent thread. */
 #define running_thread() ((struct thread *)(pg_round_down(rrsp())))
-
+#define MIN(a, b) (((a) < (b)) ? (a) : (b)) // 최솟값 정의
 // Global descriptor table for the thread_start.
 // Because the gdt will be setup after the thread_init, we should
 // setup temporal gdt first.
@@ -108,9 +109,10 @@ void thread_init(void)
 	lgdt(&gdt_ds); // 새로운 GDT를 로드하도록 지시 -> 어셈블리어 명령어
 
 	/* Init the global thread context */
-	lock_init(&tid_lock);		 // thread id 할당할 때 사용하는 잠금 => 두 쓰레드 충돌 방지
-	list_init(&ready_list);		 // 실행 준비된 쓰레드 관리
-	list_init(&sleep_list);		 // 어떤 값이 있을지 모르니 초기화
+	lock_init(&tid_lock);	// thread id 할당할 때 사용하는 잠금 => 두 쓰레드 충돌 방지
+	list_init(&ready_list); // 실행 준비된 쓰레드 관리
+	list_init(&sleep_list); // 어떤 값이 있을지 모르니 초기화
+	next_tick_to_awake = INT64_MAX;
 	list_init(&destruction_req); // 제거가 요청된 쓰레드 관리(쓰레드 종료 시 안전하게 제거하기 위해)
 
 	/* Set up a thread structure for the running thread. */
@@ -308,7 +310,7 @@ void thread_sleep(int64_t ticks)
 
 	if (curr != idle_thread)
 		list_push_back(&sleep_list, &curr->elem);
-
+	update_next_tick_to_awake(ticks);
 	thread_block();
 
 	intr_set_level(old_level); // 인터럽트 활성화(unblock이 될 때)
@@ -332,6 +334,7 @@ void thread_yield(void)
 }
 void thread_awake(int64_t ticks)
 {
+	next_tick_to_awake = INT64_MAX;				   // 최소 값을 찾기 위해 최대값으로 초기화
 	struct list_elem *e = list_begin(&sleep_list); // 첫 번째 요소를 가리키는 포인터 초기화
 	struct thread *t;
 
@@ -345,10 +348,22 @@ void thread_awake(int64_t ticks)
 		}
 		else
 		{
+			update_next_tick_to_awake(t->awake_ticks);
 			e = list_next(e);
 		}
 	}
 }
+
+void update_next_tick_to_awake(int64_t ticks)
+{
+	next_tick_to_awake = MIN(next_tick_to_awake, ticks);
+}
+
+int64_t get_next_tick_to_awake(void)
+{
+	return next_tick_to_awake;
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
