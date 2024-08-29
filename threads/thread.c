@@ -232,6 +232,13 @@ thread_create (const char *name, int priority,
 	/* Add to run queue. */
 	thread_unblock (t);
 
+	// /* Thread compare priority */
+	// if(thread_current()->priority < priority){
+	// 	thread_yield();
+	// }
+
+	thread_yield_priority();
+
 	return tid;
 }
 
@@ -329,7 +336,7 @@ thread_yield (void) {
 
 	old_level = intr_disable ();		//인스트럽터 비활성화
 	if (curr != idle_thread)
-		list_insert_ordered(&ready_list, &curr->elem,thread_priority_less, NULL);	
+		list_insert_ordered(&ready_list, &curr->elem, thread_priority_less, NULL);	
 	do_schedule (THREAD_READY); 
 	intr_set_level (old_level);
 }
@@ -337,21 +344,25 @@ thread_yield (void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	struct list_elem 	*list_p	 		= list_front(&ready_list);
-	// struct list_elem 	*list_end 		= list_tail(&ready_list);
 	struct thread		*thread_p = thread_current ();
 	
 	enum intr_level old_level = intr_disable();
 
 	thread_p->priority = new_priority;
-
-	// if()
 	
 	list_sort_by_priority();
 
 	intr_set_level (old_level);
 
 }
+/* 권한이 변경되었을때 실행 쓰레드 변경하는 함수 */
+void
+thread_yield_priority(void){
+	struct thread *high_priority_thread = list_entry(list_front(&ready_list),struct thread, elem);
+	if(thread_current()->priority < high_priority_thread->priority)
+		thread_yield();
+}
+
 //////////////////////////
 /* compare_priority_in_ready_list */
 bool
@@ -368,6 +379,7 @@ thread_priority_less(const struct list_elem *a,
 void
 list_sort_by_priority(void){
 	list_sort(&ready_list, thread_priority_less, NULL);
+	thread_yield_priority();
 }
 
 /* Returns the current thread's priority. */
