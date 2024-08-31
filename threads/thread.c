@@ -212,6 +212,8 @@ tid_t thread_create(const char *name, int priority,
 	/* Add to run queue. */
 	thread_unblock(t);
 
+	/* 비교하는 함수 추가 */
+	thread_compare_preemption();
 	return tid;
 }
 
@@ -244,9 +246,31 @@ void thread_unblock(struct thread *t)
 	ASSERT(is_thread(t));
 	old_level = intr_disable();
 	ASSERT(t->status == THREAD_BLOCKED);
-	list_push_back(&ready_list, &t->elem);
+
+	list_insert_ordered(&ready_list, &t->elem, thread_compare_priority, 0);
+
 	t->status = THREAD_READY;
 	intr_set_level(old_level);
+}
+/* list 안에 있는 요소 우선순위 비교 */
+bool thread_compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+	// a와 b를 struct thread 구조체로 변환한다.
+	struct thread *thread_a = list_entry(a, struct thread, elem);
+	struct thread *thread_b = list_entry(b, struct thread, elem);
+
+	// 두 thread의 priority 값을 비교하여 a의 priority가 더 높으면 true를 반환한다.
+	return thread_a->priority > thread_b->priority;
+}
+
+/* running_thread 선점할 요소 비교하기 */
+void thread_compare_preemption(void)
+{
+	if (!list_empty(&ready_list))
+	{
+		if (list_entry(list_front(&ready_list), struct thread, elem)->priority > thread_current()->priority)
+			thread_yield();
+	}
 }
 
 /* Returns the name of the running thread. */
@@ -328,7 +352,7 @@ void thread_yield(void)
 	old_level = intr_disable();
 
 	if (curr != idle_thread)
-		list_push_back(&ready_list, &curr->elem);
+		list_insert_ordered(&ready_list, &curr->elem, thread_compare_priority, 0);
 	do_schedule(THREAD_READY);
 	intr_set_level(old_level);
 }
@@ -368,6 +392,7 @@ int64_t get_next_tick_to_awake(void)
 void thread_set_priority(int new_priority)
 {
 	thread_current()->priority = new_priority;
+	thread_compare_preemption();
 }
 
 /* Returns the current thread's priority. */

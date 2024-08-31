@@ -29,3 +29,9 @@ changing_thread (void *aux UNUSED)
   thread_set_priority (PRI_DEFAULT - 1);
   msg ("Thread 2 exiting.");
 }
+
+// Creating a high-priority thread 2.
+// Thread 2 now lowering priority.
+// Thread 2 should have just lowered its priority.
+// Thread 2 exiting.
+// Thread 2 should have just exited.

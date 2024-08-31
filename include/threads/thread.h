@@ -150,4 +150,7 @@ void thread_awake(int64_t ticks);
 void update_next_tick_to_awake(int64_t ticks);
 int64_t get_next_tick_to_awake(void);
 
+bool thread_compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED); // 요소 비교하는 함수
+void thread_compare_preemption(void);
+
 #endif /* threads/thread.h */

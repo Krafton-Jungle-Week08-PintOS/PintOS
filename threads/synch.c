@@ -66,7 +66,7 @@ sema_down (struct semaphore *sema) {
 
 	old_level = intr_disable ();
 	while (sema->value == 0) {		// 0이면 현재 쓰레드는 자원을 이용할 수 없다는 뜻
-		list_push_back (&sema->waiters, &thread_current ()->elem);
+		list_insert_ordered (&sema->waiters, &thread_current ()->elem, thread_compare_priority, 0);
 		thread_block ();
 	}
 	sema->value--;
