@@ -420,14 +420,16 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
 		list_less_func *less, void *aux) {
 	struct list_elem *e;
 
+	// 인자 list, elem, less가 NULL이 아닌지 체크
 	ASSERT (list != NULL);
 	ASSERT (elem != NULL);
 	ASSERT (less != NULL);
 
+	// 인자로 받은 list 순회
 	for (e = list_begin (list); e != list_end (list); e = list_next (e))
-		if (less (elem, e, aux))
+		if (less (elem, e, aux)) // elem이 e보다 작으면 break
 			break;
-	return list_insert (e, elem);
+	return list_insert (e, elem); // elem을 e의 앞에 삽입
 }
 
 /* Iterates through LIST and removes all but the first in each
