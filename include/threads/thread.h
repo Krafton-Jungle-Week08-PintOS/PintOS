@@ -157,7 +157,10 @@ int64_t get_next_awake_tick(void);
 
 /* read_list_sort를 위한 함수 */
 void list_sort_by_priority(void);
-
 bool thread_priority_less(const struct list_elem *a, const struct list_elem *b, void *aux);
+void thread_yield_priority(void);
+/* for list element debuging */
+void list_elem_name (void);
+// void list_waiter_name(struct semaphore *sema);
 
 #endif /* threads/thread.h */

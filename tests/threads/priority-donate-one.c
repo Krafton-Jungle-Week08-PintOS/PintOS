@@ -41,7 +41,7 @@ test_priority_donate_one (void)
   msg ("acquire2, acquire1 must already have finished, in that order.");
   msg ("This should be the last line before finishing this test.");
 }
-
+  
 static void
 acquire1_thread_func (void *lock_) 
 {

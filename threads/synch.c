@@ -66,7 +66,10 @@ sema_down (struct semaphore *sema) {
 
 	old_level = intr_disable ();
 	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
+		// 아래의 push_back은 list의 뒤로 들어갈 뿐 우선순위로 정렬이 되지 않아 list_insert_order 사용
+		// list_push_back (&sema->waiters, &thread_current ()->elem);
+		list_insert_ordered(&sema->waiters, &thread_current()->elem, thread_priority_less, NULL);
+		// list_insert_ordered(&sema->waiters, &thread_current()->elem, thread_waiter_less, NULL);
 		thread_block ();
 	}
 	sema->value--;
@@ -113,6 +116,8 @@ sema_up (struct semaphore *sema) {
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
 					struct thread, elem));
 	sema->value++;
+	thread_yield_priority();
+	// thread_yield();
 	intr_set_level (old_level);
 }
 
@@ -240,6 +245,7 @@ lock_held_by_current_thread (const struct lock *lock) {
 struct semaphore_elem {
 	struct list_elem elem;              /* List element. */
 	struct semaphore semaphore;         /* This semaphore. */
+	int priority;						/* this thread priority */
 };
 
 /* Initializes condition variable COND.  A condition variable
@@ -282,7 +288,10 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	sema_init (&waiter.semaphore, 0);
-	list_push_back (&cond->waiters, &waiter.elem);
+	/* 현재 실행중인 thread priority 추가 */
+	waiter.priority = thread_current()->priority;
+	// list_push_back (&cond->waiters, &waiter.elem);
+	list_insert_ordered(&cond->waiters, &waiter.elem, thread_waiter_less, NULL);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
@@ -320,4 +329,33 @@ cond_broadcast (struct condition *cond, struct lock *lock) {
 
 	while (!list_empty (&cond->waiters))
 		cond_signal (cond, lock);
+}
+
+
+/* compare_priority_in_waiter_list */
+// bool
+// thread_waiter_less(const struct list_elem *a,
+//                      const struct list_elem *b,
+//                      void *aux){
+	
+// 	const struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
+// 	const struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
+
+// 	const struct thread *th1 = list_entry(list_begin(&sema_a->semaphore.waiters), struct thread, elem);
+// 	const struct thread *th2 = list_entry(list_begin(&sema_b->semaphore.waiters), struct thread, elem);
+// 	printf("priority [1: %d, 2:%d]\n",th1->priority,th2->priority);
+	
+// 	return th1->priority > th2->priority;
+// }
+bool
+thread_waiter_less(const struct list_elem *a,
+                     const struct list_elem *b,
+                     void *aux){
+	
+	const struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
+	const struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
+	/* for debuging */
+	// printf("priority [1: %d, 2:%d]\n",sema_a->priority,sema_b->priority);
+	
+	return sema_a->priority > sema_b->priority;
 }

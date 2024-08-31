@@ -115,6 +115,7 @@ static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
 
    It is not safe to call thread_current() until this function
    finishes. */
+   
 void
 thread_init (void) {
 	ASSERT (intr_get_level () == INTR_OFF);
@@ -358,6 +359,9 @@ thread_set_priority (int new_priority) {
 /* 권한이 변경되었을때 실행 쓰레드 변경하는 함수 */
 void
 thread_yield_priority(void){
+	if(list_empty(&ready_list)){
+		return;
+	}
 	struct thread *high_priority_thread = list_entry(list_front(&ready_list),struct thread, elem);
 	if(thread_current()->priority < high_priority_thread->priority)
 		thread_yield();
@@ -378,8 +382,10 @@ thread_priority_less(const struct list_elem *a,
 
 void
 list_sort_by_priority(void){
-	list_sort(&ready_list, thread_priority_less, NULL);
-	thread_yield_priority();
+	if(!list_empty(&ready_list)){
+		list_sort(&ready_list, thread_priority_less, NULL);
+		thread_yield_priority();
+	}
 }
 
 /* Returns the current thread's priority. */
@@ -705,3 +711,34 @@ void thread_awake(int64_t ticks){
 		
 	}
 }
+/* for list element debuging */
+void list_elem_name(void) {
+    if (list_empty(&ready_list)) {
+        printf("ready_list is empty\n");
+        return;
+    }
+
+    printf("ready_list(head->");
+    struct list_elem *e;
+    for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
+        struct thread *t = list_entry(e, struct thread, elem);
+        printf("->Thread[priority]:%d", t->priority);
+    }
+    printf("->Tail)\n");
+}
+// /* for list element debuging */
+// void list_waiter_name(struct list *waiter) {
+//     if (list_empty(&waiter)) {
+//         printf("waiter_list is empty\n");
+//         return;
+//     }
+	
+
+//     printf("waiter_list(head->");
+//     struct list_elem *e;
+//     for (e = list_begin(&waiter); e != list_end(&waiter); e = list_next(e)) {
+//         struct thread *t = list_entry(e, struct thread, elem);
+//         printf("->Thread[priority]:%d", t->priority);
+//     }
+//     printf("->Tail)\n");
+// }
