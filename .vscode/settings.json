@@ -8,6 +8,9 @@
         "type_traits": "c",
         "utility": "c",
         "*.tcc": "c",
-        "ostream": "c"
+        "ostream": "c",
+        "stdio.h": "c",
+        "interrupt.h": "c",
+        "synch.h": "c"
     }
 }

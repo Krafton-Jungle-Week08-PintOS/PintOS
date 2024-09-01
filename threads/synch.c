@@ -353,22 +353,26 @@ set_donate_priority (struct lock *lock){
 		// struct thread *curr = thread_current();
 		int cur_priority = thread_current()->priority;
 		if(cur_priority>get_holder_priority(lock)){
-			if(!lock->donate_priority)
+			if(!lock->donate_priority)	//만약 lock->donate가 null일때
 				lock->donate_priority = lock->holder->priority;
 			lock->holder->priority=cur_priority;
 		}
 	}
 }
 
-struct thread *
-get_sema_waiter_high_priority(struct list *waiter){
+int
+get_waiter_high_priority(struct list *waiter){
+	if(list_empty(waiter)){
+		return 0;
+	}
 	struct thread *high_priority = list_entry(list_front(waiter), struct thread, elem);
-	return &high_priority;
+	return high_priority->priority;
 }
 
 void
 return_priority(struct lock *lock){
-	if(lock->donate_priority!=NULL){
+	int flag_donate = lock->donate_priority;
+	if(flag_donate!=0 && get_holder_priority(lock)> get_waiter_high_priority(&lock->semaphore.waiters)){
 		lock->holder->priority = lock->donate_priority;
 		lock->donate_priority = NULL;
 	}

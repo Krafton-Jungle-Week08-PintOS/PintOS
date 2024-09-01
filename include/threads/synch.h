@@ -45,8 +45,9 @@ void cond_broadcast (struct condition *, struct lock *);
 bool thread_waiter_less(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* donate priority */
-void donate_priority (struct lock *lock);
-struct thread *get_sema_waiter_high_priority(struct list *waiter);
+void set_donate_priority (struct lock *lock);
+// struct thread *get_waiter_high_priority(struct list *waiter);
+int get_waiter_high_priority(struct list *waiter);
 void return_priority(struct lock *lock);
 /* Optimization barrier.
  *
