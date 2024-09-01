@@ -237,7 +237,6 @@ thread_create (const char *name, int priority,
 	// if(thread_current()->priority < priority){
 	// 	thread_yield();
 	// }
-
 	thread_yield_priority();
 
 	return tid;
@@ -393,7 +392,11 @@ int
 thread_get_priority (void) {
 	return thread_current ()->priority;
 }
-
+// /* get_holder_priority */
+// int
+// get_holder_priority (struct lock *lock) {
+// 	return lock->holder->priority;
+// }
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) {

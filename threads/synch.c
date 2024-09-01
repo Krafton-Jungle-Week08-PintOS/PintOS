@@ -176,6 +176,7 @@ lock_init (struct lock *lock) {
 	ASSERT (lock != NULL);
 
 	lock->holder = NULL;
+	lock->donate_priority=NULL;
 	sema_init (&lock->semaphore, 1);
 }
 
@@ -192,7 +193,8 @@ lock_acquire (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
-
+	// printf("lock->holder priority %d\n", get_holder_priority(lock));
+	set_donate_priority(lock);
 	sema_down (&lock->semaphore);
 	lock->holder = thread_current ();
 }
@@ -226,7 +228,7 @@ void
 lock_release (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
-
+	return_priority(lock);
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
 }
@@ -331,22 +333,6 @@ cond_broadcast (struct condition *cond, struct lock *lock) {
 		cond_signal (cond, lock);
 }
 
-
-/* compare_priority_in_waiter_list */
-// bool
-// thread_waiter_less(const struct list_elem *a,
-//                      const struct list_elem *b,
-//                      void *aux){
-	
-// 	const struct semaphore_elem *sema_a = list_entry(a, struct semaphore_elem, elem);
-// 	const struct semaphore_elem *sema_b = list_entry(b, struct semaphore_elem, elem);
-
-// 	const struct thread *th1 = list_entry(list_begin(&sema_a->semaphore.waiters), struct thread, elem);
-// 	const struct thread *th2 = list_entry(list_begin(&sema_b->semaphore.waiters), struct thread, elem);
-// 	printf("priority [1: %d, 2:%d]\n",th1->priority,th2->priority);
-	
-// 	return th1->priority > th2->priority;
-// }
 bool
 thread_waiter_less(const struct list_elem *a,
                      const struct list_elem *b,
@@ -358,4 +344,37 @@ thread_waiter_less(const struct list_elem *a,
 	// printf("priority [1: %d, 2:%d]\n",sema_a->priority,sema_b->priority);
 	
 	return sema_a->priority > sema_b->priority;
+}
+
+/* donate priority */
+void
+set_donate_priority (struct lock *lock){
+	if(lock->holder!=NULL){
+		// struct thread *curr = thread_current();
+		int cur_priority = thread_current()->priority;
+		if(cur_priority>get_holder_priority(lock)){
+			if(!lock->donate_priority)
+				lock->donate_priority = lock->holder->priority;
+			lock->holder->priority=cur_priority;
+		}
+	}
+}
+
+struct thread *
+get_sema_waiter_high_priority(struct list *waiter){
+	struct thread *high_priority = list_entry(list_front(waiter), struct thread, elem);
+	return &high_priority;
+}
+
+void
+return_priority(struct lock *lock){
+	if(lock->donate_priority!=NULL){
+		lock->holder->priority = lock->donate_priority;
+		lock->donate_priority = NULL;
+	}
+}
+/* get_holder_priority */
+int
+get_holder_priority (struct lock *lock) {
+	return lock->holder->priority;
 }

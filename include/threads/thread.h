@@ -136,6 +136,8 @@ void thread_yield (void);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+// /* for lock priority */
+// int get_holder_priority (struct lock *lock);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
@@ -163,4 +165,6 @@ void thread_yield_priority(void);
 void list_elem_name (void);
 // void list_waiter_name(struct semaphore *sema);
 
+// /* for donate */
+// void donate_priority (struct thread *t, struct lock *lock);
 #endif /* threads/thread.h */
