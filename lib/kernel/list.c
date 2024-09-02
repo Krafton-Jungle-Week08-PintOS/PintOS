@@ -1,6 +1,8 @@
 #include "list.h"
 #include "../debug.h"
 
+#include <stdio.h>
+
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
    last element.  The `prev' link of the front header is null, as
@@ -424,9 +426,11 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
 	ASSERT (elem != NULL);
 	ASSERT (less != NULL);
 
-	for (e = list_begin (list); e != list_end (list); e = list_next (e))
+	for (e = list_begin (list); e != list_end (list); e = list_next (e)){
+		// printf("Comparing elements: %p and %p\n", (void*)elem, (void*)e);
 		if (less (elem, e, aux))
 			break;
+		}
 	return list_insert (e, elem);
 }
 

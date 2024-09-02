@@ -8,6 +8,10 @@
         "type_traits": "c",
         "utility": "c",
         "*.tcc": "c",
-        "ostream": "c"
+        "ostream": "c",
+        "tests.h": "c",
+        "stdio.h": "c",
+        "list.h": "c",
+        "cstdio": "c"
     }
 }
