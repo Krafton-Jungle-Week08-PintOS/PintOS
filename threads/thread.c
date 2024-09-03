@@ -390,8 +390,8 @@ int64_t get_next_tick_to_awake(void)
 void thread_set_priority(int new_priority)
 {
 	thread_current()->original_priority = new_priority;
-	thread_compare_preemption();
 	refresh_priority();
+	thread_compare_preemption();
 }
 
 /* Returns the current thread's priority. */

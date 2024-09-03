@@ -113,11 +113,13 @@ void sema_up(struct semaphore *sema)
 	old_level = intr_disable();
 
 	// Waiters 리스트를 우선순위 기준으로 정렬
-	list_sort(&sema->waiters, thread_compare_donate_priority, NULL);
 
 	if (!list_empty(&sema->waiters))
+	{
+		list_sort(&sema->waiters, thread_compare_priority, NULL);
 		thread_unblock(list_entry(list_pop_front(&sema->waiters),
 								  struct thread, elem));
+	}
 	sema->value++;
 
 	thread_compare_preemption();
@@ -198,12 +200,13 @@ void lock_acquire(struct lock *lock)
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
 
-	if (lock->holder) {
-        thread_current()->wait_on_lock = lock;
-        list_insert_ordered (&lock->holder->donations, &thread_current()->donation_elem, 
-        thread_compare_donate_priority, 0);
-        donate_priority ();
-    }
+	if (lock->holder)
+	{
+		thread_current()->wait_on_lock = lock;
+		list_insert_ordered(&lock->holder->donations, &thread_current()->donation_elem,
+							thread_compare_donate_priority, 0);
+		donate_priority();
+	}
 
 	sema_down(&lock->semaphore);
 	lock->holder = thread_current();
@@ -238,14 +241,13 @@ void lock_release(struct lock *lock)
 {
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
-	
-	remove_with_lock (lock);
+
+	remove_with_lock(lock);
 	refresh_priority();
 
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
 }
-
 
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
