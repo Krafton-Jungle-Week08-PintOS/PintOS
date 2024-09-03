@@ -488,8 +488,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->magic = THREAD_MAGIC;
 	
 	/* init for donate */
-	list_init(&t->lock_list);
-	t->my_priority=0;
+	// lock_init(&t->wait_on_lock);
+	t->wait_on_lock=NULL;
+	t->original_priority=priority;
+	list_init(&t->donations);
+	
 
 }
 

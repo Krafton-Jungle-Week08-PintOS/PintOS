@@ -20,8 +20,6 @@ void sema_self_test (void);
 struct lock {
 	struct thread *holder;      /* Thread holding lock (for debugging). */
 	struct semaphore semaphore; /* Binary semaphore controlling access. */
-	struct list_elem lock_elem; /* list 정렬 */
-	int highest_priority;		/* list 내에서 가장 큰 priority 설정 */
 };
 
 void lock_init (struct lock *);
@@ -57,9 +55,9 @@ void add_lock_list(struct lock *lock);
 ///* lock_release *///
 /*  */
 void remove_lock_elem(struct lock *lock);
-void update_donate_priority(void);
+void update_priority(void);
 bool lock_priority_less(const struct list_elem *a, const struct list_elem *b, void *aux);
-
+bool thread_compare_donate_priority (const struct list_elem *a, const struct list_elem *b, void *aux);
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an

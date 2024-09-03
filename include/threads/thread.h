@@ -96,9 +96,12 @@ struct thread {
 	struct list_elem elem;              /* List element. */
 	int64_t wakeup_tick;				/* wakeup_tick */
 	
+	
 	/* add argument for lock */
-	struct list lock_list;				/* the locks thread have  */
-	int my_priority;					/* thread's own priority before the doate */
+	struct lock *wait_on_lock;  
+  	struct list donations; 					/* remember donation */
+  	struct list_elem donation_elem; 		/* for keep as list */	
+	int original_priority;					/* thread's own priority before the doate */
 
 
 #ifdef USERPROG
