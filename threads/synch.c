@@ -194,12 +194,12 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!lock_held_by_current_thread (lock));
 	// printf("lock->holder priority %d\n", get_holder_priority(lock));
 	enum intr_level old_level = intr_disable();
-	// if(!sema_try_down(&lock->semaphore)){
-	    struct thread *curr = thread_current ();
-		compare_priority_for_lock(lock);
-		sema_down (&lock->semaphore);
-		thread_current()->wait_on_lock = NULL;
-	// }
+	
+	struct thread *curr = thread_current ();
+	compare_priority_for_lock(lock);
+	sema_down (&lock->semaphore);
+	thread_current()->wait_on_lock = NULL;
+	
 	intr_set_level(old_level);
 	lock->holder = curr;
 }
@@ -393,6 +393,7 @@ set_donate_priority(struct thread *t){
 	struct thread *holder = curr->wait_on_lock->holder;
 	/* 만약 내가 원하는 lock */
     while (depth < 8 && curr->wait_on_lock) {
+		holder = curr->wait_on_lock->holder;
         if (curr->priority > holder->priority) {
             holder->priority = curr->priority;
         }
