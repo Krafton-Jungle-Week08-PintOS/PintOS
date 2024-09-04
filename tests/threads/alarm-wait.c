@@ -89,7 +89,7 @@ test_sleep (int thread_cnt, int iterations)
       t->duration = (i + 1) * 10;
       t->iterations = 0;
 
-      snprintf (name, sizeof name, "thread %d", i);
+      snprintf (name, sizeof name, "thread %d", i); // 몇 번 쓰레드인지 출력하는 애
       thread_create (name, PRI_DEFAULT, sleeper, t);
     }
   

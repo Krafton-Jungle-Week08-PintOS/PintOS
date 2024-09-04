@@ -92,9 +92,16 @@ struct thread {
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
 
+	int64_t awake_ticks; 				/* Awake. */
+
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
+	int original_priority;   /* save original priority before the doante */
+	struct lock *wait_on_lock;  
+  	struct list donations; /* remember donation */
+  	struct list_elem donation_elem; /* for keep as list */
+  
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
@@ -143,4 +150,16 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 
+void thread_sleep(int64_t ticks);
+void thread_awake(int64_t ticks);
+void update_next_tick_to_awake(int64_t ticks);
+int64_t get_next_tick_to_awake(void);
+
+bool thread_compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+void thread_compare_preemption(void);
+
+bool thread_compare_donate_priority(const struct list_elem *a, const struct list_elem *b, void *aux); // 요소 비교하는 함수
+void donate_priority (void);
+void remove_with_lock (struct lock *lock);
+void refresh_priority(void);
 #endif /* threads/thread.h */
