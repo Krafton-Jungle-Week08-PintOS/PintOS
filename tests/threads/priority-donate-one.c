@@ -29,11 +29,15 @@ test_priority_donate_one (void)
   /* Make sure our priority is the default. */
   ASSERT (thread_get_priority () == PRI_DEFAULT);
 
-  lock_init (&lock);
-  lock_acquire (&lock);
+  lock_init (&lock); // 락 초기화
+  lock_acquire (&lock); // 현재 스레드가 락 획득
+
+  // priority 32이고 락 획득을 요청하는 스레드
   thread_create ("acquire1", PRI_DEFAULT + 1, acquire1_thread_func, &lock);
   msg ("This thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 1, thread_get_priority ());
+
+  // priority 33이고 락 획득을 요청하는 스레드
   thread_create ("acquire2", PRI_DEFAULT + 2, acquire2_thread_func, &lock);
   msg ("This thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 2, thread_get_priority ());
@@ -45,11 +49,11 @@ test_priority_donate_one (void)
 static void
 acquire1_thread_func (void *lock_) 
 {
-  struct lock *lock = lock_;
+  struct lock *lock = lock_; // 락 초기화
 
-  lock_acquire (lock);
+  lock_acquire (lock); // 현재 스레드가 락 획득
   msg ("acquire1: got the lock");
-  lock_release (lock);
+  lock_release (lock); // 락 반환
   msg ("acquire1: done");
 }
 

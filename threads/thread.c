@@ -86,9 +86,9 @@ static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
 첫 번째 인자 l 포인터의 스레드가 s 포인터의 스레드보다 크면 true
 */
 bool
-compare_priority(struct list_elem *l, struct list_elem *s, void *aux UNUSED)
+thread_compare_priority(const struct list_elem *l, const struct list_elem *s, void *aux UNUSED)
 {
-	return list_entry(l, struct thread, elem)->priority > list_entry(s, struct thread, elem);
+	return list_entry(l, struct thread, elem)->priority > list_entry(s, struct thread, elem)->priority;
 }
 
 /*
@@ -102,7 +102,7 @@ thread_preemption_check(void)
 	// ready_list의 첫 번째 priority보다 작으면 컨텍스트 스위치
 	if(!list_empty(&ready_list) && thread_current()->priority 
 	< list_entry(list_front(&ready_list), struct thread, elem)->priority) {
-		thread_yield();
+		thread_yield(); // CPU 선점 양보(컨텍스트 스위칭)
 	}
 }
 
@@ -234,6 +234,10 @@ thread_create (const char *name, int priority, // thread_create시 새로운 pri
 
 	/* Add to run queue. */
 	thread_unblock (t);
+	/*
+	새로운 스레드가 추가될 경우 running 스레드와 우선순위를 비교하여
+	더 높은 우선순위의 스레드가 CPU를 선점하도록 하여야 함
+	*/
 	thread_preemption_check(); // 새로 생성한 스레드의 priority와 running 스레드의 priority 비교
 
 	return tid;
@@ -272,7 +276,7 @@ thread_unblock (struct thread *t) {
 	// list_push_back (&ready_list, &t->elem); // ready_list에 스레드 추가
 
 	// ready_list에 스레드 추가. 단 priority 내림차순으로 정렬되도록 추가
-	list_insert_ordered(&ready_list, &t->elem, compare_priority, 0);
+	list_insert_ordered(&ready_list, &t->elem, thread_compare_priority, 0);
 
 	t->status = THREAD_READY; // 현재 스레드 상태를 ready로
 	intr_set_level (old_level); // 인터럽트 활성화
@@ -328,7 +332,7 @@ thread_exit (void) {
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
 void
-thread_yield (void) { // CPU를 다른 다른 스레드에게 양보하는 함수(yield)
+thread_yield (void) { // CPU를 다른 스레드에게 양보하는 함수(yield)
 	struct thread *curr = thread_current ();
 	enum intr_level old_level;
 
@@ -337,7 +341,7 @@ thread_yield (void) { // CPU를 다른 다른 스레드에게 양보하는 함�
 	old_level = intr_disable (); // 인터럽트 비활성화
 	if (curr != idle_thread) // 현재 스레드가 유휴 스레드가 아니면
 		// list_push_back (&ready_list, &curr->elem);
-		list_insert_ordered(&ready_list, &curr->elem, compare_priority, 0);
+		list_insert_ordered(&ready_list, &curr->elem, thread_compare_priority, 0);
 	do_schedule (THREAD_READY); // 현재 스레드 ready 상태로 전환하고 컨텍스트 스위치
 	intr_set_level (old_level); // 인터럽트 활성화
 }
@@ -345,7 +349,13 @@ thread_yield (void) { // CPU를 다른 다른 스레드에게 양보하는 함�
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
+	thread_current ()->my_priority = new_priority;
+	/* 
+	현재 running 중인 스레드의 priority 변경이 일어날 경우 donations의 스레드들 보다
+	new_priority의 값이 더 큰 경우를 고려하여
+	reset_priority를 호출하여 my_priority 값을 new_priority로 초기화한다.
+	*/
+	reset_priority();
 	thread_preemption_check(); // 새로 설정한 priority와 가장 앞의 priority 비교
 }
 
@@ -444,6 +454,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+
+	t->my_priority = priority; // initial priority 값 설정
+	t->waiting_lock = NULL; // 해당 스레드가 점유하기 위해 대기하는 락을 NULL로 초기화
+	list_init(&t->donations); // 해당 스레드에게 priority를 donate 해준 스레드들의 리스트를 초기화
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -667,5 +681,39 @@ thread_wake(int64_t ticks)
 		else {
 			e = list_next(e); // 아니면 다음 포인터로 이동(sleep_list의 다음 스레드를 가리킴)
 		}
+	}
+}
+
+/*
+donation_elem priority를 비교하는 함수
+*/
+bool
+thread_compare_donate_priority(const struct list_elem *l, const struct list_elem *s, void *aux UNUSED)
+{
+	return list_entry(l, struct thread, donation_elem)->priority
+	> list_entry(s, struct thread, donation_elem)->priority;
+}
+
+/*
+이미 점유중인 lock을 점유하려고 할 때,
+스레드의 priority가 lock을 점유 중인 스레드의 priority보다 더 큰 경우
+lock을 점유 중인 스레드에게 priority를 빌려주는(donate) 함수
+*/
+void
+donate_priority(void)
+{
+	int depth;
+	struct thread *curr = thread_current(); // 현재 스레드
+
+	// nested의 depth를 왜 8로 설정했는가?
+	for(depth = 0; depth < 8; depth++) {
+		if(!curr->waiting_lock) { // 현재 스레드가 점유하려고 기다리는 lock이 없는 경우 break
+			break;
+		}
+		/* 점유하려는 락이 다른 스레드에 의해 이미 점유되어 있는 상태라면 */
+		// 현재 점유하려고 하는 락을 점유한 스레드를 holder로 지정
+		struct thread *holder = curr->waiting_lock->holder;
+		holder->priority = curr->priority; // holder의 priority를 현재 스레드의 priority로 donate
+		curr = holder; // curr를 holder로 지정
 	}
 }

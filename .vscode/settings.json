@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "*.py": "python",
+        "intr-stubs.h": "c",
+        "palloc.h": "c",
+        "thread.h": "c",
+        "timer.h": "c",
+        "synch.h": "c",
+        "list.h": "c",
+        "interrupt.h": "c"
+    }
+}

@@ -40,6 +40,7 @@ test_priority_donate_multiple2 (void)
 
   lock_acquire (&a);
   lock_acquire (&b);
+  // 이 시점에서 락 a와 b의 sema value는 0임
 
   thread_create ("a", PRI_DEFAULT + 3, a_thread_func, &a);
   msg ("Main thread should have priority %d.  Actual priority: %d.",

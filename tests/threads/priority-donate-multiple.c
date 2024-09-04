@@ -29,17 +29,19 @@ test_priority_donate_multiple (void)
   /* Make sure our priority is the default. */
   ASSERT (thread_get_priority () == PRI_DEFAULT);
 
+  // 락 a와 락 b를 각각 초기화
   lock_init (&a);
   lock_init (&b);
 
+  // 현재 스레드가 락 a와 락 b를 점유(sema down하고 락 소유자를 현재 스레드로 설정)
   lock_acquire (&a);
   lock_acquire (&b);
 
-  thread_create ("a", PRI_DEFAULT + 1, a_thread_func, &a);
+  thread_create ("a", PRI_DEFAULT + 1, a_thread_func, &a); // priority 32의 스레드를 생성
   msg ("Main thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 1, thread_get_priority ());
 
-  thread_create ("b", PRI_DEFAULT + 2, b_thread_func, &b);
+  thread_create ("b", PRI_DEFAULT + 2, b_thread_func, &b); // priority 33의 스레드를 생성
   msg ("Main thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 2, thread_get_priority ());
 

@@ -20,11 +20,11 @@ test_priority_sema (void)
   /* This test does not work with the MLFQS. */
   ASSERT (!thread_mlfqs);
 
-  sema_init (&sema, 0);
-  thread_set_priority (PRI_MIN);
+  sema_init (&sema, 0); // 세마포어 초기화
+  thread_set_priority (PRI_MIN); // 스레드의 priority 0으로 설정
   for (i = 0; i < 10; i++) 
     {
-      int priority = PRI_DEFAULT - (i + 3) % 10 - 1;
+      int priority = PRI_DEFAULT - (i + 3) % 10 - 1; // 임의 priority
       char name[16];
       snprintf (name, sizeof name, "priority %d", priority);
       thread_create (name, priority, priority_sema_thread, NULL);
@@ -33,7 +33,7 @@ test_priority_sema (void)
   for (i = 0; i < 10; i++) 
     {
       sema_up (&sema);
-      msg ("Back in main thread."); 
+      msg ("Back in main thread.");
     }
 }
 
