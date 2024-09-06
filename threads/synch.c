@@ -113,7 +113,6 @@ void sema_up(struct semaphore *sema)
 	old_level = intr_disable();
 
 	// Waiters 리스트를 우선순위 기준으로 정렬
-
 	if (!list_empty(&sema->waiters))
 	{
 		list_sort(&sema->waiters, thread_compare_priority, NULL);

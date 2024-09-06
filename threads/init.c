@@ -67,20 +67,24 @@ int main (void) NO_RETURN;
 /* Pintos main program. */
 int
 main (void) {
-	uint64_t mem_end;
-	char **argv;
+	uint64_t mem_end; // 시스템 메모리의 끝을 나타내는 64비트 변수
+	char **argv; // 명렬줄(command line) 인수의 문자열 배열에 대한 포인터
 
 	/* Clear BSS and get machine's RAM size. */
+	/*
+	BSS(Block started by Symbol) 영역 초기화. 시스템의 RAM 크기를 가져옴. 
+	BSS는 초기화되지 않은 전역 변수를 저장하는 메모리 영역
+	*/
 	bss_init ();
 
 	/* Break command line into arguments and parse options. */
-	argv = read_command_line ();
-	argv = parse_options (argv);
+	argv = read_command_line (); // 커맨드 라인을 읽고 인수로 나눔. 나눈 인수를 argv에 저장함.
+	argv = parse_options (argv); // argv에 저장된 커맨드 라인 인수를 분석하여 필요한 옵션을 생성함.
 
 	/* Initialize ourselves as a thread so we can use locks,
 	   then enable console locking. */
 	thread_init ();
-	console_init ();
+	console_init (); // 콘솔 입출력 시스템 초기화, 콘솔의 락 활성화
 
 	/* Initialize memory system. */
 	mem_end = palloc_init ();
@@ -88,21 +92,21 @@ main (void) {
 	paging_init (mem_end);
 
 #ifdef USERPROG
-	tss_init ();
-	gdt_init ();
+	tss_init (); // 컨텍스트 스위칭에 사용되는 task state segment 초기화.
+	gdt_init (); // 메모리 세그먼트 관리를 위한 구조인 global descriptor table 초기화
 #endif
 
 	/* Initialize interrupt handlers. */
-	intr_init ();
-	timer_init ();
-	kbd_init ();
-	input_init ();
+	intr_init (); // 인터럽트 초기화
+	timer_init (); // 타이머 초기화
+	kbd_init (); // 키보드 시스템 초기화
+	input_init (); // 입력 장치 시스템 초기화
 #ifdef USERPROG
-	exception_init ();
-	syscall_init ();
+	exception_init (); // ✅예외 처리 시스템 초기화
+	syscall_init (); // ✅시스템 콜 초기화
 #endif
 	/* Start thread scheduler and enable interrupts. */
-	thread_start ();
+	thread_start (); // 스레드 스케줄러 시작하고 인터럽트 활성화
 	serial_init_queue ();
 	timer_calibrate ();
 
@@ -119,7 +123,7 @@ main (void) {
 	printf ("Boot complete.\n");
 
 	/* Run actions specified on kernel command line. */
-	run_actions (argv);
+	run_actions (argv); // 커맨드 라인에서 지정된 작업을 실행
 
 	/* Finish up. */
 	if (power_off_when_done)
@@ -169,16 +173,29 @@ paging_init (uint64_t mem_end) {
 
 /* Breaks the kernel command line into words and returns them as
    an argv-like array. */
+/*
+커널에 입력된 커맨드라인을 개별 단어로 파싱하고, 이를 argv 형식의 배열로 반환함.
+*/
 static char **
 read_command_line (void) {
-	static char *argv[LOADER_ARGS_LEN / 2 + 1];
-	char *p, *end;
-	int argc;
+	static char *argv[LOADER_ARGS_LEN / 2 + 1]; // 명령 줄을 파싱한 인수를 저장할 포인터 배열 argv 선언.
+	char *p, *end; // p: 명령줄 문자열을 가리키는 포인터, end: 명령줄의 끝을 가리킴.
+	int argc; // 명령줄 인수의 개수(argument count)를 저장.
 	int i;
 
+	/*
+	LOADER_ARG_CNT 메모리 위치에서 명령줄 인수의 개수를 읽어와 argc에 저장함.
+	ptov 함수는 물리 주소를 가상 주소로 변환함.
+	*/
 	argc = *(uint32_t *) ptov (LOADER_ARG_CNT);
-	p = ptov (LOADER_ARGS);
-	end = p + LOADER_ARGS_LEN;
+	p = ptov (LOADER_ARGS); // 명령줄 인수들이 저장된 메모리 위치를 가리키는 포인터 p
+	end = p + LOADER_ARGS_LEN; // 명령줄 인수 영역의 끝을 가리키는 포인터
+	/*
+	명령줄 인수만큼 loop를 돎.
+	argv 배열에 인수의 주소 위치 저장.
+	다음 인수의 주소를 가리키기 위해 현재 가리키는 인수의 길이만큼 p 이동시켜 다음 인수를 가리킬 수 있도록 함.
+	만약에 포인터가 영역 끝에 다다르거나 넘어가면 PANIC 호출
+	*/
 	for (i = 0; i < argc; i++) {
 		if (p >= end)
 			PANIC ("command line arguments overflow");
@@ -186,10 +203,15 @@ read_command_line (void) {
 		argv[i] = p;
 		p += strnlen (p, end - p) + 1;
 	}
-	argv[argc] = NULL;
+	argv[argc] = NULL; // 배열의 끝을 NULL로 표기하여 끝이라는 것을 표기함.
 
 	/* Print kernel command line. */
 	printf ("Kernel command line:");
+	/*
+	인자의 개수만큼 loop 돌면서 공백이 없으면 그대로 출력
+	공백이 있으면 작은 따옴표로 감싸서 출력
+	명령줄 끝나면 줄바꿈
+	*/
 	for (i = 0; i < argc; i++)
 		if (strchr (argv[i], ' ') == NULL)
 			printf (" %s", argv[i]);
@@ -197,41 +219,63 @@ read_command_line (void) {
 			printf (" '%s'", argv[i]);
 	printf ("\n");
 
-	return argv;
+	return argv; // 파싱 끝나면 인수들이 저장된 배열 반환
 }
 
 /* Parses options in ARGV[]
    and returns the first non-option argument. */
+/*
+커널의 명령줄에서 옵션 파싱하고, 첫 번째 비옵션 인수를 반환함.
+인수의 배열인 argv를 받아서 -로 시작하는 인수(옵션)을 처리하고 그 이후 비옵션 인수를 반환함.
+*/
 static char **
 parse_options (char **argv) {
+	/*
+	argv 배열이 NULL이 아니고 argv 배열의 첫 번째가 -로 시작하는 경우에만 loop를 돎
+	*/
 	for (; *argv != NULL && **argv == '-'; argv++) {
-		char *save_ptr;
-		char *name = strtok_r (*argv, "=", &save_ptr);
-		char *value = strtok_r (NULL, "", &save_ptr);
-
+		char *save_ptr; // strtok_r에서 상태를 유지하기 위한 포인터
+		char *name = strtok_r (*argv, "=", &save_ptr); // 인수를 = 기준으로 나누어 name에 저장.
+		char *value = strtok_r (NULL, "", &save_ptr); // = 이후의 값을 value에 저장.
+		
+		// 옵션이 -h면 usage() 호출하여 함수 사용법 출력함
 		if (!strcmp (name, "-h"))
 			usage ();
+		// 옵션이 -q이면 커널이 작업 끝난 후에 시스템 종료되도록 설정
 		else if (!strcmp (name, "-q"))
 			power_off_when_done = true;
-#ifdef FILESYS
+#ifdef FILESYS // 파일 시스템이 정의된 경우에만 아래 코드가 컴파일 됨
+		// 옵션이 -f이면 파일 시스템 포맷되도록 설정
 		else if (!strcmp (name, "-f"))
 			format_filesys = true;
 #endif
+		// 옵션이 -rs이면 value를 정수로 변환한 후 랜덤 시드로 설정하여 난수 생성기를 초기화
 		else if (!strcmp (name, "-rs"))
 			random_init (atoi (value));
+		// 옵션이 -mlfqs이면 멀티레벨 피드백 큐 스케줄링 활성화
 		else if (!strcmp (name, "-mlfqs"))
 			thread_mlfqs = true;
-#ifdef USERPROG
+#ifdef USERPROG // 유저 프로그램 기능이 정의된 경우에 아래 코드 컴파일 됨
+		/*
+		옵션이 -ul이면 value를 정수로 변환하여 사용자 페이지 제한을 설정
+
+		👉사용자 페이지 제한:
+		pintos에서 사용자가 사용할 수 있는 페이지(메모리)의 최대 수를 제한하는 기능.
+		프로세스가 사용할 수 있는 메모리의 양을 조절함. 그 이상의 메모리 할당을 시도하면 실패 혹은
+		page fault가 발생할 수 있음.
+		*/
 		else if (!strcmp (name, "-ul"))
 			user_page_limit = atoi (value);
+		// 옵션이 -threads-tests이면 스레드 테스트 활성화
 		else if (!strcmp (name, "-threads-tests"))
 			thread_tests = true;
 #endif
+		// 인식할 수 없는 옵션 주어지면 오류 메시지 출력하고 시스템 중단
 		else
 			PANIC ("unknown option `%s' (use -h for help)", name);
 	}
 
-	return argv;
+	return argv; // 이후의 프로그램 실행에서 사용하기 위해 첫 번째 비옵션 인수의 포인터 반환
 }
 
 /* Runs the task specified in ARGV[1]. */
@@ -254,6 +298,9 @@ run_task (char **argv) {
 
 /* Executes all of the actions specified in ARGV[]
    up to the null pointer sentinel. */
+/*
+argv 배열에 정의된 명령어의 인자들을 null pointer sentinel(\0)까지 모두 순차적으로 실행함.
+*/
 static void
 run_actions (char **argv) {
 	/* An action. */
@@ -263,7 +310,12 @@ run_actions (char **argv) {
 		void (*function) (char **argv);   /* Function to execute action. */
 	};
 
-	/* Table of supported actions. */
+	/* 
+	Table of supported actions.
+	지원하는 모든 동작을 정의한 테이블. 
+	각 동작은 이름과 함께 필요한 인수의 수, 해당 동작을 수행하는 함수로 구성됨.
+	"run"이라는 이름의 동작이 주어지면 run_task 함수가 실행됨.
+	*/
 	static const struct action actions[] = {
 		{"run", 2, run_task},
 #ifdef FILESYS
@@ -276,13 +328,17 @@ run_actions (char **argv) {
 		{NULL, 0, NULL},
 	};
 
+	// argv 배열이 NULL이 될 때까지 loop
 	while (*argv != NULL) {
-		const struct action *a;
+		const struct action *a; // action 배열을 순회하기 위한 포인터
 		int i;
 
 		/* Find action name. */
+		/*
+		a는 현재 동작을 가리키는 포인터
+		*/
 		for (a = actions; ; a++)
-			if (a->name == NULL)
+			if (a->name == NULL) 
 				PANIC ("unknown action `%s' (use -h for help)", *argv);
 			else if (!strcmp (*argv, a->name))
 				break;
