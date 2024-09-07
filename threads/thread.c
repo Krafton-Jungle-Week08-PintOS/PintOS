@@ -342,6 +342,7 @@ void thread_sleep(int64_t ticks)
 void thread_yield(void)
 {
 	if(intr_context()){
+		intr_yield_on_return();
 		return;
 	}
 	struct thread *curr = thread_current();

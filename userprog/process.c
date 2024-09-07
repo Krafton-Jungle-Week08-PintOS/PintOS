@@ -204,6 +204,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	while(1){}
 	return -1;
 }
 
@@ -328,6 +329,10 @@ load (const char *file_name, struct intr_frame *if_) {
 	off_t file_ofs;
 	bool success = false;
 	int i;
+	char *arg_value[128];	/* arg인자 파싱 배열 */
+
+	/* parsing macro*/
+	parsing_arg(file_name,arg_value);
 
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
@@ -335,6 +340,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
+	// printf("i'm in load\n");
 	/* Open executable file. */
 	file = filesys_open (file_name);
 	if (file == NULL) {
@@ -411,6 +417,8 @@ load (const char *file_name, struct intr_frame *if_) {
 	if (!setup_stack (if_))
 		goto done;
 
+	/*  */
+
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
 
@@ -424,7 +432,22 @@ done:
 	file_close (file);
 	return success;
 }
+void
+parsing_arg(char *file_name, char **arg_value){
+	/* parshing and insert array */
+	char *save_ptr;
+	char *token = strtok_r (file_name, " ", &save_ptr);
+	int arg_count=0;
 
+	arg_value[arg_count] = token;
+	
+	while(token!=NULL){
+		token = strtok_r(NULL, " ", &save_ptr);
+		arg_count++;
+		arg_value[arg_count] = token;
+	}
+	// return arg_count;
+}
 
 /* Checks whether PHDR describes a valid, loadable segment in
  * FILE and returns true if so, false otherwise. */
