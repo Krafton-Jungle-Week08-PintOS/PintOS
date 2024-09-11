@@ -6,6 +6,9 @@
         "stdio.h": "c",
         "interrupt.h": "c",
         "process.h": "c",
-        "synch.h": "c"
+        "synch.h": "c",
+        "syscall-nr.h": "c",
+        "syscall.h": "c",
+        "list.h": "c"
     }
 }

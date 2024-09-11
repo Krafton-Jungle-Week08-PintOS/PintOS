@@ -1,5 +1,7 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
+/* for Project2 make semaphore */
+#include "threads/synch.h"
 
 #include <debug.h>
 #include <list.h>
@@ -101,10 +103,17 @@ struct thread {
 	struct lock *wait_on_lock;  
   	struct list donations; /* remember donation */
   	struct list_elem donation_elem; /* for keep as list */
+	
   
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
+	/* for Project 2 */
+	/* make semaphore for process_wait during process_exec */
+	struct 	semaphore 	thread_sema;
+	struct 	list		child_list;
+	struct 	list_elem	child_elem;		/* find thread in thread_semaphore */
+	int 				exit_status;
 #endif
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
@@ -162,4 +171,8 @@ bool thread_compare_donate_priority(const struct list_elem *a, const struct list
 void donate_priority (void);
 void remove_with_lock (struct lock *lock);
 void refresh_priority(void);
+
+/* Project2 find thread by tid */
+struct thread *thread_get_by_id(tid_t tid);
+struct list *get_ready_list(void);
 #endif /* threads/thread.h */
