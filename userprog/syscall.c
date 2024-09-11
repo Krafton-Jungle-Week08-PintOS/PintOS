@@ -7,6 +7,7 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "filesys/filesys.h"
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
@@ -55,7 +56,7 @@ void syscall_handler(struct intr_frame *f UNUSED)
 		// fork_handler(f);
 		break;
 	case SYS_CREATE:
-		f->R.rax = create_handler(f->R.rdi, f->R.rsi);
+		create_handler(f);
 		break;
 	case SYS_READ:
 		// read_handler(f);
@@ -73,6 +74,18 @@ void syscall_handler(struct intr_frame *f UNUSED)
 	}
 
 	// printf("system call!\n");
+}
+
+void check_address(void *addr)
+{
+	/* 포인터가 가르키는 주소가 유저영역의 주소인지 확인
+	1. 유저 가상 주소를 가리키는지 2. 주소가 유효한지 3. 유저 영역 내에 있지만 페이지로 할당하지 않은 영역
+	잘못된 접근일 경우 프로세스 종료*/
+	struct thread *t = thread_current();
+	if (!is_user_vaddr(addr) || addr == NULL || pml4_get_page(t->pml4, addr) == NULL)
+	{
+		exit_handler(-1);
+	}
 }
 
 static void halt_handler(struct intr_frame *f)
@@ -130,15 +143,32 @@ void write_handler(struct intr_frame *f)
 void wait_handler(struct intr_frame *f)
 {
 }
-bool create_handler(const char *file, unsigned initial_size)
+
+void create_handler(struct intr_frame *f)
 {
-	if (file_create)
+	char *file = f->R.rdi;
+	unsigned initial_size = f->R.rsi;
+	check_address(file);
+	if (filesys_create(file, initial_size))
+	{
+		f->R.rax= true;
+	}
+	else
+	{
+		f->R.rax = false;
+	}
+}
+
+bool remove_handler(const char *file)
+{
+	check_address(file);
+	if (filesys_remove(file))
 	{
 		return true;
 	}
 	else
 	{
-		false;
+		return false;
 	}
 }
 
@@ -161,14 +191,3 @@ bool create_handler(const char *file, unsigned initial_size)
 // 	// rax 는 반환 값을 저장하는 레지스터 이기때문.
 // }
 
-// void check_address(void *addr)
-// {
-// 	/* 포인터가 가르키는 주소가 유저영역의 주소인지 확인
-// 	1. 유저 가상 주소를 가리키는지 2. 주소가 유효한지 3. 유저 영역 내에 있지만 페이지로 할당하지 않은 영역
-// 	잘못된 접근일 경우 프로세스 종료*/
-// 	struct thread *t = thread_current();
-// 	if (!is_user_vaddr(addr) || addr == NULL || pml4_get_page(t->pml4, addr) == NULL)
-// 	{
-// 		exit(-1);
-// 	}
-// }

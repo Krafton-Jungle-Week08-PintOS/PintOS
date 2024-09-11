@@ -35,6 +35,7 @@ int write (int fd, const void *buffer, unsigned length);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+bool create_handler(const char *file, unsigned initial_size);
 
 int dup2(int oldfd, int newfd);
 

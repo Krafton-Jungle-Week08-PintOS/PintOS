@@ -9,6 +9,9 @@
         "synch.h": "c",
         "syscall-nr.h": "c",
         "stdint.h": "c",
-        "list.h": "c"
+        "list.h": "c",
+        "syscall.h": "c",
+        "intrinsic.h": "c",
+        "loader.h": "c"
     }
 }
