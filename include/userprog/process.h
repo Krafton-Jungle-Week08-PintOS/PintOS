@@ -10,4 +10,7 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (struct thread *next);
 
+/* for user stack */
+void setup_user_stack(struct intr_frame *if_, char **arg_value, int arg_count);
+int parsing_arg(char *file_name, char **arg_value);
 #endif /* userprog/process.h */

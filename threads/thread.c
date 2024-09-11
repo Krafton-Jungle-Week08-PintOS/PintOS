@@ -208,6 +208,7 @@ tid_t thread_create(const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
+	list_push_back(&thread_current()->child_list, &t->child_elem);
 
 	/* Add to run queue. */
 	thread_unblock(t);
@@ -500,6 +501,10 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->original_priority = priority;
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);
+
+	/* project2 make semaphore */
+	sema_init(&t->thread_sema,0);
+	list_init(&t->child_list);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -732,4 +737,21 @@ void remove_with_lock(struct lock *lock)
 bool thread_compare_donate_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
 	return list_entry(a, struct thread, donation_elem)->priority > list_entry(b, struct thread, donation_elem)->priority;
+}
+
+/* find thread by tid */
+struct thread *thread_get_by_id(tid_t tid){
+	struct list_elem *e;
+	struct thread *curr = thread_current();
+	for(e = list_begin(&curr->child_list); e != list_end(&curr->child_list); e=list_next(e)){
+		struct thread *t = list_entry (e, struct thread, child_elem);
+		if(t->tid == tid)
+			return t;
+	}
+	return NULL;
+
+}
+
+struct list *get_ready_list(void){
+	return &ready_list;
 }

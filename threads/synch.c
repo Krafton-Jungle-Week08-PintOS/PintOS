@@ -363,3 +363,46 @@ bool semaphore_compare_priority(const struct list_elem *l, const struct list_ele
 
 	return list_entry(list_begin(waiter_l_sema), struct thread, elem)->priority > list_entry(list_begin(waiter_s_sema), struct thread, elem)->priority;
 }
+
+/* For Project2 */
+/* thread_semaphore */
+void // 쓰레드를 블록(대기)상태로 만드는 함수
+thread_sema_down(struct semaphore *sema)
+{
+	enum intr_level old_level; // 인터럽트의 상태를 저장하는데 사용
+
+	ASSERT(sema != NULL);	 // 세마포어가 유효한지 검증
+	ASSERT(!intr_context()); // 인터럽트를 처리 중인지 검증
+
+	old_level = intr_disable();
+	while (sema->value == 0)
+	{ // 0이면 현재 쓰레드는 자원을 이용할 수 없다는 뜻
+		list_insert_ordered(&sema->waiters, &thread_current()->child_elem, thread_compare_priority, 0);
+		thread_block();
+	}
+	sema->value--;
+	intr_set_level(old_level);
+}
+
+void thread_sema_up(struct semaphore *sema)
+{
+	enum intr_level old_level;
+
+	ASSERT(sema != NULL);
+
+	old_level = intr_disable();
+
+	// Waiters 리스트를 우선순위 기준으로 정렬
+
+	if (!list_empty(&sema->waiters))
+	{
+		list_sort(&sema->waiters, thread_compare_priority, NULL);
+		thread_unblock(list_entry(list_pop_front(&sema->waiters),
+								  struct thread, child_elem));
+	}
+	sema->value++;
+
+	// thread_compare_preemption();
+
+	intr_set_level(old_level);
+}

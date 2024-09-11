@@ -18,6 +18,10 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+
+/* for semaphore */
+#include "threads/synch.h"
+
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -27,12 +31,15 @@ static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
 
+
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
+	/* semaphore for process waiting */
+	// sema_init(&wait_sema,0);
 }
-
+ 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
  * The new thread may be scheduled (and may even exit)
  * before process_create_initd() returns. Returns the initd's
@@ -49,7 +56,10 @@ process_create_initd (const char *file_name) {
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
-
+	
+	char *parsing;
+	/*file_name을 받아와서 null 기준으로 문자열 파싱*/
+	strtok_r(file_name," ", &parsing);
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
@@ -181,8 +191,13 @@ process_exec (void *f_name) {
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
-	if (!success)
+	if (!success){
+		thread_sema_up(&thread_current()->thread_sema);
 		return -1;
+	}
+		
+	
+	// hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -200,11 +215,18 @@ process_exec (void *f_name) {
  * This function will be implemented in problem 2-2.  For now, it
  * does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) {
+process_wait (tid_t child_tid) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while(1){}
+	// while(1){}
+	// sema_down(&wait_sema);
+	struct thread *curr = thread_current();
+	
+	struct thread *child = thread_get_by_id(child_tid);	
+
+	thread_sema_down(&child->thread_sema);
+
 	return -1;
 }
 
@@ -217,7 +239,9 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
+	printf("%s: exit(%d)\n",curr->name, curr->exit_status);
 	process_cleanup ();
+	thread_sema_up(&curr->thread_sema);
 }
 
 /* Free the current process's resources. */
@@ -332,7 +356,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	char *arg_value[128];	/* arg인자 파싱 배열 */
 
 	/* parsing macro*/
-	parsing_arg(file_name,arg_value);
+	int arg_count=parsing_arg(file_name,arg_value);
 
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
@@ -421,6 +445,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
+	setup_user_stack(if_, arg_value, arg_count);
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
@@ -432,7 +457,7 @@ done:
 	file_close (file);
 	return success;
 }
-void
+int
 parsing_arg(char *file_name, char **arg_value){
 	/* parshing and insert array */
 	char *save_ptr;
@@ -446,7 +471,44 @@ parsing_arg(char *file_name, char **arg_value){
 		arg_count++;
 		arg_value[arg_count] = token;
 	}
-	// return arg_count;
+	return arg_count;
+}
+
+void
+setup_user_stack(struct intr_frame *if_, char **arg_value, int arg_count){
+	int i;
+	void *arg_p[128];
+	if_->rsp = USER_STACK;
+	//instesr argv string
+	for(i=arg_count-1;i>=0;i--){
+		int argv_len =strlen(arg_value[i])+1;
+		if_->rsp-=argv_len;
+		memcpy(if_->rsp, arg_value[i],argv_len);
+		arg_p[i] = if_->rsp;
+	}
+
+	//padding
+	if_->rsp = ROUND_DOWN(if_->rsp, 8);
+	// if_->rsp &= (~7);
+
+	// arg[argc]
+	if_->rsp -=8;
+	memset(if_->rsp, 0, sizeof(char **));
+
+	//insert argv adress
+	for(i=arg_count-1;i>=0;i--){
+		if_->rsp -= 8;
+		// memcpy(if_->rsp,(char *)arg_p[i],sizeof(char *));
+		*(char **)if_->rsp = arg_p[i];
+	}
+
+	//fake return address
+	if_->rsp -=8;
+	memset(if_->rsp,0,sizeof(void (*)()));
+	// memcpy(if_->rsp,0x400008,sizeof(void (*)));
+	if_->R.rdi  = arg_count;
+	if_->R.rsi = if_->rsp + 8; // fake_address 바로 위: arg_address 맨 앞 가리키는 주소값!
+	
 }
 
 /* Checks whether PHDR describes a valid, loadable segment in

@@ -7,9 +7,29 @@
 #include "userprog/gdt.h"
 #include "threads/flags.h"
 #include "intrinsic.h"
+#include "filesys/filesys.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+/* Projects 2 and later. */
+typedef int pid_t;
+
+void halt_handler 	(void) NO_RETURN;
+void exit_handler 	(int status) NO_RETURN;
+pid_t fork_handler	(const char *thread_name);
+int exec_handler 	(const char *file);
+// void wait_handler (pid_t);
+void wait_handler 	(struct intr_frame *f);
+void create_handler (struct intr_frame *f);
+bool remove_handler	(const char *file);
+int open_handler	(const char *file);
+int filesize_handler(int fd);
+int read_handler	(int fd, void *buffer, unsigned length);
+void write_handler 	(struct intr_frame *f);
+void seek_handelr	(int fd, unsigned position);
+unsigned tell_handler(int fd);
+void close_handler	(int fd);
+/*  */
 
 /* System call.
  *
@@ -41,6 +61,97 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	printf ("system call!\n");
-	thread_exit ();
+	/* case 문으로 각 systemcall 번호별 호출하는 systema call을 만들어아하나 */
+	// printf ("system call!\n");
+	switch (f->R.rax){
+		case SYS_HALT:
+			halt_handler();
+			break;
+		case SYS_EXIT:
+			exit_handler(f->R.rdi);
+			break;
+		case SYS_FORK:
+		
+		case SYS_EXEC:
+
+		case SYS_WAIT:
+		
+		case SYS_CREATE:
+			create_handler(f);
+			break;
+		case SYS_REMOVE:
+			// f->R.rax = remove(f->R.rdi);
+			break;
+
+		case SYS_OPEN:
+		
+		case SYS_FILESIZE:
+
+		case SYS_READ:
+
+		case SYS_WRITE:
+			write_handler(f);
+			break;
+		case SYS_SEEK:
+
+		case SYS_TELL:
+
+		case SYS_CLOSE:
+
+		default:
+			// exit(-1);
+			thread_exit ();
+			break;
+	}
+
+	/* 
+	SYS_HALT,                  
+	SYS_EXIT,                
+	SYS_FORK,             
+	SYS_EXEC,                   
+	SYS_WAIT,                 
+	SYS_CREATE,                
+	SYS_REMOVE,                 
+	SYS_OPEN,                   
+	SYS_FILESIZE,               
+	SYS_READ,                   
+	SYS_WRITE,                  
+	SYS_SEEK,                   
+	SYS_TELL,                   
+	SYS_CLOSE,                  
+	 */
+	
+}
+void halt_handler (void){
+	power_off();
+}
+
+void exit_handler (int status){
+	struct thread *cur = thread_current();
+	cur->exit_status = status;
+	thread_exit();
+}
+void
+write_handler (struct intr_frame *f) {
+	// putbuf(buffer, size);
+	int fd			= f->R.rdi;
+	void *buffer 	= f->R.rsi;
+	unsigned size	= f->R.rdx;
+
+	if(fd = 1){
+		putbuf(buffer, size);
+	}
+	f->R.rax = size;
+}
+
+void
+wait_handler(struct intr_frame *f){
+	process_wait();
+}
+
+void
+create_handler(struct intr_frame *f){
+	char *file = f->R.rdi;
+	unsigned initial_size = f->R.rsi;
+	f->R.rax = filesys_create(file, initial_size);
 }

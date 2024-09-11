@@ -41,6 +41,11 @@ void cond_wait(struct condition *, struct lock *);
 void cond_signal(struct condition *, struct lock *);
 void cond_broadcast(struct condition *, struct lock *);
 
+/* Project2 */
+/* Semaphore for wait thread */
+void thread_sema_up(struct semaphore *);
+void thread_sema_down(struct semaphore *);
+
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an
