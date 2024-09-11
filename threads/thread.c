@@ -186,18 +186,20 @@ tid_t thread_create(const char *name, int priority,
 {
 	struct thread *t;
 	tid_t tid;
-
 	ASSERT(function != NULL);
 
 	/* Allocate thread. */
-	t = palloc_get_page(PAL_ZERO);
+	t = palloc_get_page(PAL_ZERO);	// 여기서 thread의 주소를 할당 해준다.
+
+	
+
 	if (t == NULL)
 		return TID_ERROR;
 
 	/* Initialize thread. */
 	init_thread(t, name, priority);
 	tid = t->tid = allocate_tid();
-
+	
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
 	t->tf.rip = (uintptr_t)kernel_thread;
@@ -209,9 +211,11 @@ tid_t thread_create(const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	list_push_back(&thread_current()->child_list, &t->child_elem);
+
 	/* Add to run queue. */
 	thread_unblock(t);
-
+ 
 	/* 비교하는 함수 추가 */
 	thread_compare_preemption();
 	return tid;
@@ -499,7 +503,14 @@ init_thread(struct thread *t, const char *name, int priority)
 
 	t->original_priority = priority;
 	t->wait_on_lock = NULL;
+	t->exit_status = 0;	
+	
 	list_init(&t->donations);
+	
+	// project 2 초기화
+	sema_init(&t->thread_sema, 0);
+	list_init(&t->child_list);
+	
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

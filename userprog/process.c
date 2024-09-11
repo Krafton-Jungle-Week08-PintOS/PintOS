@@ -32,6 +32,10 @@ static void
 process_init(void)
 {
 	struct thread *current = thread_current();
+
+	// 프로세스라는 개념 구현하기
+	// 공유 자원
+	// fd 초기화하기
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -51,10 +55,15 @@ tid_t process_create_initd(const char *file_name)
 		return TID_ERROR;
 	strlcpy(fn_copy, file_name, PGSIZE);
 
+	char *save_ptr; // 분리된 문자열 중 남는 부분의 시작주소
+
+	strtok_r(file_name, " ", &save_ptr);	// 나중에 exit때 파일 이름 parsing 미리 해주기
+	// create 전에 파일 이름 parsing 해주기
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy); //  User process 를 실행시킬수 있는 'User' kernel thread 생성 -> 첫번째로 실행될 함수는 initd=>'User' kernel thread에 쌓일 예정
 	if (tid == TID_ERROR)
 		palloc_free_page(fn_copy);
+
 	return tid;
 }
 
@@ -185,15 +194,17 @@ int process_exec(void *f_name)
 	process_cleanup();
 
 	/* And then load the binary */
-	success = load(file_name, &_if);
+	success = load(file_name, &_if); // load를 통해 프로그램 실행에 필요한 데이터를 메모리에 적재
 
 	/* If load failed, quit. */
 	palloc_free_page(file_name);
 	if (!success)
 		return -1;
 
+	// hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+
 	/* Start switched process. */
-	do_iret(&_if);
+	do_iret(&_if); // register를 바꾸므로 CPU가 실행하는 instruction line을 알려주는 rsp등이 바뀌며 User Process가 실행된다
 	NOT_REACHED();
 }
 
@@ -211,10 +222,13 @@ int process_wait(tid_t child_tid UNUSED)
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while (1)
-	{
-	}
-
+	// while (1)
+	// {
+	// }
+	for (int i = 0; i < 1000000000; i++)
+		; // 테스트를 위해 잠시 무한루프 해제 -> fork 완성 전까지만
+	/* --- Project 2: Command_line_parsing ---*/
+	// thread_sema_down();
 	return -1;
 }
 
@@ -226,8 +240,10 @@ void process_exit(void)
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
-
+	
 	process_cleanup();
+	// cleanup 하고 나서 sema_up을 해주자.
+	thread_sema_up(&curr->thread_sema);
 }
 
 /* Free the current process's resources. */
@@ -360,17 +376,21 @@ void stack_arg(char **arg_value, int arg_count, struct intr_frame *if_)
 	// 역순으로 넣기 (문자열은 센티널까지 읽어야 한다.)
 	for (int i = arg_count - 1; i >= 0; i--)
 	{
-		int arg_len = strlen(arg_value[i]) + 1; // 널 문자 포함 문자 길이 계산
-		if_->rsp -= arg_len;					// 스택 포인터를 문자열 크기만큼 감소
-		memcpy(if_, arg_value[i], arg_len);		// 스택에 문자열 복사(문자열 길이를 복사한다.)
-		arg_addr[i] = if_->rsp;					// 유저 스택에서 값의 주소를 넣어야 되니까 주소값을 저장해둬야 해
+		int arg_len = strlen(arg_value[i]) + 1;	 // 널 문자 포함 문자 길이 계산
+		if_->rsp -= arg_len;					 // 스택 포인터를 문자열 크기만큼 감소
+		memcpy(if_->rsp, arg_value[i], arg_len); // 스택에 문자열 복사(문자열 길이를 복사한다.)
+		arg_addr[i] = if_->rsp;					 // 유저 스택에서 값의 주소를 넣어야 되니까 주소값을 저장해둬야 해
 	}
 
 	// 8 byte로 정렬해 줄 패딩 값 삽입
-	if_->rsp = ROUND_DOWN(if_->rsp, 8);
+	while ((uint64_t)if_->rsp % 8 != 0)
+	{
+		if_->rsp--;
+		*(uint8_t *)if_->rsp = 0; // 패딩으로 0을 삽입
+	}
 
 	if_->rsp -= 8;
-	memset(if_->rsp, 0, 8);
+	memset(if_->rsp, 0, sizeof(char **));
 
 	for (int i = arg_count - 1; i >= 0; i--)
 	{
@@ -380,7 +400,7 @@ void stack_arg(char **arg_value, int arg_count, struct intr_frame *if_)
 
 	// return address
 	if_->rsp -= 8;
-	memset(if_->rsp, 0, sizeof(void (*)()));
+	memset(if_->rsp, 0, sizeof(char **));
 
 	if_->R.rdi = arg_count;
 	if_->R.rsi = if_->rsp + 8; // arg_address 맨 앞을 가리키는 주소 값
@@ -487,12 +507,13 @@ load(const char *file_name, struct intr_frame *if_)
 	if (!setup_stack(if_))
 		goto done;
 
+	stack_arg(arg_value, arg_count, if_); // user stack에 command line을 쌓는다. => user pool 메모리 영역에 있다.
+
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-	stack_arg(arg_value, arg_count, if_);
 
 	success = true;
 
@@ -724,3 +745,42 @@ setup_stack(struct intr_frame *if_)
 	return success;
 }
 #endif /* VM */
+
+void thread_sema_up(struct semaphore *sema)
+{
+	enum intr_level old_level;
+
+	ASSERT(sema != NULL);
+
+	old_level = intr_disable();
+
+	// Waiters 리스트를 우선순위 기준으로 정렬
+
+	if (!list_empty(&sema->waiters))
+	{
+		list_sort(&sema->waiters, thread_compare_priority, NULL);
+		thread_unblock(list_entry(list_pop_front(&sema->waiters),
+								  struct thread, child_elem));
+	}
+	sema->value++;
+
+	intr_set_level(old_level);
+}
+
+void // 쓰레드를 블록(대기)상태로 만드는 함수
+thread_sema_down(struct semaphore *sema)
+{
+	enum intr_level old_level; // 인터럽트의 상태를 저장하는데 사용
+
+	ASSERT(sema != NULL);	 // 세마포어가 유효한지 검증
+	ASSERT(!intr_context()); // 인터럽트를 처리 중인지 검증
+
+	old_level = intr_disable();
+	while (sema->value == 0)
+	{ // 0이면 현재 쓰레드는 자원을 이용할 수 없다는 뜻
+		list_insert_ordered(&sema->waiters, &thread_current()->elem, thread_compare_priority, 0);
+		thread_block();
+	}
+	sema->value--;
+	intr_set_level(old_level);
+}

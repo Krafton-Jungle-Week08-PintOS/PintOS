@@ -14,6 +14,7 @@ static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 	register uint64_t *a5 asm ("r8") = (uint64_t *) a5_;
 	register uint64_t *a6 asm ("r9") = (uint64_t *) a6_;
 
+	/* 각각의 레지스터에 차례대로 시스템 콜 넘버부터 각 인자들을 저장한다. */
 	__asm __volatile(
 			"mov %1, %%rax\n"
 			"mov %2, %%rdi\n"
@@ -28,6 +29,8 @@ static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 			: "cc", "memory");
 	return ret;
 }
+
+/* 2. 형식에 맞게 변환한다. */
 
 /* Invokes syscall NUMBER, passing no arguments, and returns the
    return value as an `int'. */
@@ -68,6 +71,8 @@ static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 			((uint64_t) ARG3), \
 			((uint64_t) ARG4), \
 			0))
+
+/* 1. 해당 시스템 콜을 찾고 */
 void
 halt (void) {
 	syscall0 (SYS_HALT);

@@ -7,15 +7,15 @@ syscall_entry:
 	movq %rbx, temp1(%rip)
 	movq %r12, temp2(%rip)     /* callee saved registers */
 	movq %rsp, %rbx            /* Store userland rsp    */
-	movabs $tss, %r12
+	movabs $tss, %r12		// 해당 커널 프로세스의 TSS의 주소를 받아온다. (작업 상태 세그먼트)
 	movq (%r12), %r12
-	movq 4(%r12), %rsp         /* Read ring0 rsp from the tss */
-	/* Now we are in the kernel stack */
-	push $(SEL_UDSEG)      /* if->ss */
-	push %rbx              /* if->rsp */
+	movq 4(%r12), %rsp         /* Read ring0 rsp from the tss */ // TSS에 저장되어 있던 RSP0(커널 스택 시작주소)의 주소를 RSP로 옮긴다.
+	/* Now we are in the kernel stack */ // OS(intr_enrty)가 커널 스택에 또 추가적인 레지스터 값을 담아준다.
+	push $(SEL_UDSEG)      /* if->ss, 유저 스택 메모리 공간 주소 */
+	push %rbx              /* if->rsp, RBX에 돌아가야 할 유저 메모리의 RSP값을 저장 */
 	push %r11              /* if->eflags */
-	push $(SEL_UCSEG)      /* if->cs */
-	push %rcx              /* if->rip */
+	push $(SEL_UCSEG)      /* if->cs, 유저 코드 세그먼트 메모리 시작 주소 */
+	push %rcx              /* if->rip, RCX에 돌아가야 할 다음 PC (RIP 값)값을 저장 */
 	subq $16, %rsp         /* skip error_code, vec_no */
 	push $(SEL_UDSEG)      /* if->ds */
 	push $(SEL_UDSEG)      /* if->es */

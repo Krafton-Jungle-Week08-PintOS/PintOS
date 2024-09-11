@@ -7,6 +7,8 @@
         "interrupt.h": "c",
         "process.h": "c",
         "synch.h": "c",
-        "syscall-nr.h": "c"
+        "syscall-nr.h": "c",
+        "stdint.h": "c",
+        "list.h": "c"
     }
 }

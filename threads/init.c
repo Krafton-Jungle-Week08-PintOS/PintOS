@@ -119,6 +119,7 @@ main (void) {
 	printf ("Boot complete.\n");
 
 	/* Run actions specified on kernel command line. */
+	// User program이 실행되는 부분
 	run_actions (argv);
 
 	/* Finish up. */
@@ -244,7 +245,7 @@ run_task (char **argv) {
 	if (thread_tests){
 		run_test (task);
 	} else {
-		process_wait (process_create_initd (task));
+		process_wait (process_create_initd (task));	// process_wait(~, process_create_initd, ~) 함수를 통해 호출되는데 OS가 사용자 프로그램의 실행 종료를 기다린다는 의미
 	}
 #else
 	run_test (task);
