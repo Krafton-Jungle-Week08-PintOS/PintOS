@@ -426,7 +426,7 @@ load(const char *file_name, struct intr_frame *if_)
 		goto done;
 	process_activate(thread_current());
 
-	// 여기에 parsing을 해야 아래 file을 오픈했을 때 실행이 된다. -- project2
+	// 여기에 parsing을 해야 아래 file을 오픈했을 때 실행이 된다.
 	arg_count = parse_arg(file_name, arg_value);
 
 	/* Open executable file. */

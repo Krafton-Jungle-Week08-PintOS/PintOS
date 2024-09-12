@@ -106,6 +106,7 @@ void exit_handler(int status)
 	printf("%s: exit(%d)\n", t->name, status);
 	// printf("exit\n"); // Process Termination Message
 	t->exit_status = status;
+	
 
 	thread_exit();
 }
