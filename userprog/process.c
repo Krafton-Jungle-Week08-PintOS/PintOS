@@ -457,7 +457,7 @@ done:
 	file_close (file);
 	return success;
 }
-int
+int 
 parsing_arg(char *file_name, char **arg_value){
 	/* parshing and insert array */
 	char *save_ptr;

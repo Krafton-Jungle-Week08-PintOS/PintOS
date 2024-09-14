@@ -22,13 +22,14 @@ int exec_handler 	(const char *file);
 void wait_handler 	(struct intr_frame *f);
 void create_handler (struct intr_frame *f);
 bool remove_handler	(const char *file);
-int open_handler	(const char *file);
+void open_haddler	(struct intr_frame *f);
 int filesize_handler(int fd);
 int read_handler	(int fd, void *buffer, unsigned length);
 void write_handler 	(struct intr_frame *f);
 void seek_handelr	(int fd, unsigned position);
 unsigned tell_handler(int fd);
 void close_handler	(int fd);
+
 /*  */
 
 /* System call.
@@ -61,9 +62,8 @@ syscall_init (void) {
 void
 syscall_handler (struct intr_frame *f UNUSED) {
 	// TODO: Your implementation goes here.
-	/* case 문으로 각 systemcall 번호별 호출하는 systema call을 만들어아하나 */
 	// printf ("system call!\n");
-	switch (f->R.rax){
+	switch (f->R.rax){ 
 		case SYS_HALT:
 			halt_handler();
 			break;
@@ -84,7 +84,8 @@ syscall_handler (struct intr_frame *f UNUSED) {
 			break;
 
 		case SYS_OPEN:
-		
+			open_haddler(f);
+			break;
 		case SYS_FILESIZE:
 
 		case SYS_READ:
@@ -152,6 +153,52 @@ wait_handler(struct intr_frame *f){
 void
 create_handler(struct intr_frame *f){
 	char *file = f->R.rdi;
-	unsigned initial_size = f->R.rsi;
-	f->R.rax = filesys_create(file, initial_size);
+	
+	if(check_file(file)!=0){
+		unsigned initial_size = f->R.rsi;
+		f->R.rax = filesys_create(file, initial_size);
+	}
+}
+
+void
+open_haddler(struct intr_frame *f){
+	char *file_name = f->R.rdi;
+	// filesys_init(file);
+	if(check_file(file_name)!=0){
+		struct file *file= filesys_open(file_name);
+		if (!file){
+			f->R.rax=-1;
+			exit_handler(-1);
+		}
+		f->R.rax= handling_fd(file_name);
+	}
+}
+
+struct fd_struct{
+	int fd;
+	struct file *file;
+};
+
+unsigned int fd_arr[128] ={0};
+
+int
+handling_fd(char *file_name){
+	struct fd_struct new_fd;
+	int i;
+	for(i=2;i<sizeof(fd_arr);i++){
+		if(fd_arr[i]==0){
+			fd_arr[i]=&file_name;
+			return i;
+		}
+	}
+	return -1;
+}
+
+int
+check_file(char *file){
+	if(file == NULL || !is_user_vaddr(file) || pml4_get_page(thread_current()->pml4, file)==NULL){
+		exit_handler(-1);
+		return 0;
+	}
+	return 1;
 }
